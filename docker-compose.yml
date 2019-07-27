@@ -1,0 +1,15 @@
+version: '3'
+services:
+  dcrd:
+    build: ./dcrd/
+    ports:
+      - "18555:18555"
+      - "127.0.0.1:19556:19556"
+    volumes:
+      - "./dcrd/:/root/.dcrd"
+  dcrwallet:
+    build: ./dcrwallet/
+    ports:
+      - "127.0.0.1:19557:19557"
+    volumes:
+      - "./dcrwallet/:/root/.dcrwallet"
