@@ -11,5 +11,7 @@ services:
     build: ./dcrwallet/
     ports:
       - "127.0.0.1:19557:19557"
+    expose:
+      - "1-65535"
     volumes:
       - "./dcrwallet/:/root/.dcrwallet"
