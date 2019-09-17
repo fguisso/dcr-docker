@@ -7,8 +7,10 @@ ENV GOPATH=/go \
 RUN apk add --no-cache git\
     && mkdir -p $GOPATH/src && cd $GOPATH/src
 
+ARG DCRD_VERSION
 RUN git clone https://${DCRD_SRC} ${DCRD_SRC} \
     && cd $DCRD_SRC \
+    && if [ -n "$DCRD_VERSION" ]; then git checkout ${DCRD_VERSION}; fi \
     && go install . ./cmd/..
 
 # Final image
@@ -27,4 +29,5 @@ EXPOSE 19108 19109
 # Mainnet default port (server, rpc)
 EXPOSE 9108 9109
 
-CMD ["dcrd"]
+ENV DCRD_NETWORK=mainnet
+CMD ["sh", "-c", "dcrd -C ~/.dcrd/dcrd-${DCRD_NETWORK}.conf"]
