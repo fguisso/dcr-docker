@@ -3,15 +3,13 @@ FROM golang:1.12-alpine3.10
 
 ENV GOPATH=/go \
     NETWORK=mainnet \
-    DCRD_SRC=github.com/decred/dcrd
+    BTCD_SRC=github.com/btcsuite/btcd
 
 RUN apk add --no-cache git\
-    && mkdir -p $GOPATH/src && cd $GOPATH/src
+    && mkdir -p $GOPATH/src
 
-ARG DCRD_VERSION
-RUN git clone https://${DCRD_SRC} ${DCRD_SRC} \
-    && cd $DCRD_SRC \
-    && if [ -n "$DCRD_VERSION" ]; then git checkout ${DCRD_VERSION}; fi \
+RUN git clone https://${BTCD_SRC} ${BTCD_SRC} \
+    && cd $BTCD_SRC \
     && go install . ./cmd/..
 
 # Final image
@@ -22,12 +20,12 @@ RUN apk add --no-cache ca-certificates
 COPY --from=0 /go/bin/* /bin/
 
 # Simnet default port (server, rpc)
-EXPOSE 18555 19556
+EXPOSE 18555 18556
 
 # Testnet default port (server, rpc)
-EXPOSE 19108 19109
+EXPOSE 18333 18334
 
 # Mainnet default port (server, rpc)
-EXPOSE 9108 9109
+EXPOSE 8333 8334
 
-CMD ["sh", "-c", "dcrd -C ~/.dcrd/dcrd-${NETWORK}.conf"]
+CMD ["sh", "-c", "btcd -C ~/.btcd/btcd-${NETWORK}.conf"]

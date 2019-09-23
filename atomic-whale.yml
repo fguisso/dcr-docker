@@ -1,0 +1,93 @@
+version: '3.4'
+
+x-common-variables: &variables
+  NETWORK: "testnet"
+  DCRD_RPC: "127.0.0.1:10000"
+  #  BTCD_RPC: "127.0.0.1:10001"
+ 
+services:
+  dcrd:
+    build:
+      context: ./dcrd
+      args:
+        DCRD_VERSION: "895020ac"
+    environment: *variables
+    ports:
+      - "127.0.0.1:19108:19108"
+      - "127.0.0.1:10000:19109"
+    # volumes:
+    # - type: volume
+    #    source: data
+    #    target: "/root/.dcrd/data"
+    volumes:
+      - "./dcrd/:/root/.dcrd" 
+
+#  btcd:
+#    build:
+#      context: ./btcd
+#    environment: *variables
+#    ports:
+#      - "127.0.0.1:18333:18333"
+#      - "127.0.0.1:10001:18334"
+#    volumes:
+#      - "./btcd/:/root/.btcd"
+  dcr-alpha:
+    build:
+      context: ./dcrlnd
+      args:
+        DCRLND_VERSION: "c749cf42"
+        DCRLND_SRC: "github.com/matheusd/dcrlnd"
+    environment:
+      <<: *variables
+      NODE_NAME: "alpha"
+    depends_on:
+      - dcrd
+    ports:
+      - "127.0.0.1:10010:10009"
+      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:8000:9735"
+    volumes:
+      - "./dcrlnd/:/root/.dcrlnd"
+      - "./dcrd/:/root/.dcrd"
+  dcr-beta:
+    build:
+      context: ./dcrlnd
+      args:
+        DCRLND_VERSION: "c749cf42"
+        DCRLND_SRC: "github.com/matheusd/dcrlnd"
+    environment:
+      <<: *variables
+      NODE_NAME: "beta"
+    depends_on:
+      - dcrd
+    ports:
+      - "127.0.0.1:10011:10009"
+      - "127.0.0.1:9090:8080"
+      - "127.0.0.1:9000:9735"
+    volumes:
+      - "./dcrlnd/:/root/.dcrlnd"
+      - "./dcrd/:/root/.dcrd"   
+
+#  lnd-alpha:
+#    build:
+#      context: ./lnd
+#    environment:
+#      <<: *variables
+#      NODE_NAME: "alpha"
+#    depends_on:
+#      - btcd
+#    ports:
+#      - "127.0.0.1:10012:10009"
+#      - "127.0.0.1:9999:8080"
+#      - "127.0.0.1:9012:9735"
+#    volumes:
+#      - "./lnd/:/root/.lnd"
+#      - "./btcd/:/root/.btcd"
+
+# volumes:
+#  data:
+#    driver: local
+#    driver_opts:
+#      type: none
+#      o: "bind"
+#      device: "~/docker-test"

@@ -26,6 +26,4 @@ COPY --from=0 /root/.dcrwallet/simnet ../root/data/simnet
 # Simnet default port (server, rpc)
 EXPOSE 19556 19557
 
-EXPOSE 30000-59999
-
-CMD ["dcrwallet", "--configfile=/root/.dcrwallet/dcrwallet.conf"]
+CMD ["dcrwallet"]

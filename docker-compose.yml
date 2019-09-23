@@ -1,4 +1,4 @@
-version: '3'
+version: '3.4'
 services:
   dcrd:
     build: ./dcrd/
@@ -6,12 +6,10 @@ services:
       - "18555:18555"
       - "127.0.0.1:19556:19556"
     volumes:
-      - "./dcrd/:/root/.dcrd"
+      - "./dcrd/:/root/.dcrd" 
   dcrwallet:
     build: ./dcrwallet/
     ports:
       - "127.0.0.1:19557:19557"
-    expose:
-      - "1-65535"
     volumes:
       - "./dcrwallet/:/root/.dcrwallet"

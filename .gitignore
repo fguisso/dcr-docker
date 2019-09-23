@@ -1,2 +1,2 @@
-rpc.cert
-rpc.key
+*.cert
+*.key
