@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-var certificateFile = "rpc.cert"
+var certificateFile = "/rpc/rpc.cert"
 
 func main() {
 	creds, err := credentials.NewClientTLSFromFile(certificateFile, "localhost")
@@ -32,12 +32,12 @@ func main() {
 		Seed:              []byte("b280922d2cffda44648346412c5ec97f429938105003730414f10b01e1402eac"),
 	}
 
-	createWalletResponse, err := c.CreateWallet(context.Background(), createWalletRequest)
+	_, err = c.CreateWallet(context.Background(), createWalletRequest)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	fmt.Println("Create/Import wallet: ", createWalletResponse)
+	fmt.Println("Wallet created!")
 	return
 }

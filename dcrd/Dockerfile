@@ -12,14 +12,20 @@ ARG DCRD_VERSION
 RUN git clone https://${DCRD_SRC} ${DCRD_SRC} \
     && cd $DCRD_SRC \
     && if [ -n "$DCRD_VERSION" ]; then git checkout ${DCRD_VERSION}; fi \
-    && go install . ./cmd/..
+    && go install . ./cmd/...
 
 # Final image
 FROM alpine:3.10
 
 RUN apk add --no-cache ca-certificates
 
+# copy the compiled binaries from the first container 
 COPY --from=0 /go/bin/* /bin/
+COPY dcrd-simnet.conf /root/.dcrd/dcrd-simnet.conf
+RUN mkdir "/rpc" \
+        && "/bin/gencerts" --host="dcrd" --host="localhost" --directory="/rpc" --force
+
+VOLUME ["/rpc"]
 
 # Simnet default port (server, rpc)
 EXPOSE 18555 19556

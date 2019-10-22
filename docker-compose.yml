@@ -1,15 +1,34 @@
 version: '3.4'
+
+x-common-variables: &variables
+  NETWORK: "simnet"
+
 services:
   dcrd:
-    build: ./dcrd/
-    ports:
-      - "18555:18555"
-      - "127.0.0.1:19556:19556"
+    build:
+      context: dcrd/
+    environment: *variables
     volumes:
-      - "./dcrd/:/root/.dcrd" 
+      - shared:/rpc
+      - decred:/data
+    networks:
+      - ln-network
+
   dcrwallet:
-    build: ./dcrwallet/
-    ports:
-      - "127.0.0.1:19557:19557"
+    build: dcrwallet/
+    depends_on:
+      - dcrd
+    environment: *variables
     volumes:
-      - "./dcrwallet/:/root/.dcrwallet"
+      - shared:/rpc
+    networks:
+      - ln-network
+
+volumes:
+  shared:
+    driver: local
+  decred:
+    driver: local
+networks:
+  ln-network:
+    driver: bridge
