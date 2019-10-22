@@ -3,15 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 
-	"github.com/decred/dcrd/dcrutil"
 	pb "github.com/decred/dcrwallet/rpc/walletrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
 
-var certificateFile = filepath.Join(dcrutil.AppDataDir("dcrwallet", false), "rpc.cert")
+var certificateFile = "rpc.cert"
 
 func main() {
 	creds, err := credentials.NewClientTLSFromFile(certificateFile, "localhost")
@@ -29,10 +27,9 @@ func main() {
 
 	c := pb.NewWalletLoaderServiceClient(conn)
 
-	var seed [32]byte
 	createWalletRequest := &pb.CreateWalletRequest{
 		PrivatePassphrase: []byte("123"),
-		Seed:              seed[:],
+		Seed:              []byte("b280922d2cffda44648346412c5ec97f429938105003730414f10b01e1402eac"),
 	}
 
 	createWalletResponse, err := c.CreateWallet(context.Background(), createWalletRequest)
@@ -42,4 +39,5 @@ func main() {
 	}
 
 	fmt.Println("Create/Import wallet: ", createWalletResponse)
+	return
 }
