@@ -1,30 +1,32 @@
-# Build image
-FROM golang:1.12-alpine3.10
+FROM golang:1.13-alpine as builder
 
-ENV GOPATH=/go \
-    NETWORK=mainnet \
-    DCRD_RPC= \
-    NODE_NAME=
+# Install dependencies.
+RUN apk add --no-cache --update git make
 
-ARG DCRLND_SRC
+# Copy in the local repository to build from.
+COPY . /go/src/github.com/decred/dcrlnd
 
-RUN apk add --no-cache git make\
-    && mkdir -p $GOPATH/src && cd $GOPATH/src
+# Force Go to use the cgo based DNS resolver. This is required to ensure DNS
+# queries required to connect to linked containers succeed.
+ENV GODEBUG netdns=cgo
 
-ARG DCRLND_VERSION
-RUN git clone https://${DCRLND_SRC} ${DCRLND_SRC} \
-    && cd $DCRLND_SRC \
-    && if [ -n "$DCRLND_VERSION" ]; then git checkout ${DCRLND_VERSION}; fi \
-    && make install
+RUN  cd /go/src/github.com/decred/dcrlnd \
+        &&  make \
+        &&  make install
 
-# Final image
-FROM alpine:3.10
+# Start a new, final image to reduce size.
+FROM alpine as final
 
-RUN apk add --no-cache ca-certificates
+# Add bash.
+RUN apk add --no-cache bash
 
-COPY --from=0 /go/bin/* /bin/
+# Expose dcrlnd ports (server, rpc).
+EXPOSE 9735 10009
 
-# Default ports (RPC, REST, PEER)
-EXPOSE 10009 8080 9735
+# Copy the binaries from the builder image.
+COPY --from=builder /go/bin/dcrlncli /bin/
+COPY --from=builder /go/bin/dcrlnd /bin/
 
-CMD ["sh", "-c", "sleep 5; dcrlnd --configfile=~/.dcrlnd/dcrlnd-${NETWORK}.conf --decred.${NETWORK} --dcrd.rpchost=${DCRD_RPC} --lnddir=~/.dcrlnd/${NODE_NAME}"]
+# Copy the entrypoint script.
+COPY "docker/dcrlnd/start-dcrlnd.sh" .
+RUN chmod +x start-dcrlnd.sh

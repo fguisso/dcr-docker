@@ -1,39 +1,48 @@
-# Build image
-FROM golang:1.12-alpine3.10
+FROM golang:1.13-alpine as builder
 
-ENV GOPATH=/go \
-    NETWORK=mainnet \
-    DCRD_SRC=github.com/decred/dcrd
+# Install build dependencies.
+RUN apk add --no-cache git
 
-RUN apk add --no-cache git\
-    && mkdir -p $GOPATH/src && cd $GOPATH/src
+WORKDIR $GOPATH/src/github.com/decred/dcrd
 
-ARG DCRD_VERSION
-RUN git clone https://${DCRD_SRC} ${DCRD_SRC} \
-    && cd $DCRD_SRC \
-    && if [ -n "$DCRD_VERSION" ]; then git checkout ${DCRD_VERSION}; fi \
-    && go install . ./cmd/...
+# Grab and install the latest version of of dcrd and all related dependencies.
+RUN git clone https://github.com/decred/dcrd.git . \
+    &&  go install . ./cmd/...
 
-# Final image
-FROM alpine:3.10
+# Start a new image
+FROM alpine as final
 
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache \
+    bash \
+    ca-certificates
 
-# copy the compiled binaries from the first container 
-COPY --from=0 /go/bin/* /bin/
-COPY dcrd-simnet.conf /root/.dcrd/dcrd-simnet.conf
+# Copy the compiled binaries from the builder image.
+COPY --from=builder /go/bin/dcrd /bin/
+COPY --from=builder /go/bin/dcrctl /bin/
+COPY --from=builder /go/bin/findcheckpoint /bin/
+COPY --from=builder /go/bin/gencerts /bin/
+COPY --from=builder /go/bin/addblock /bin/
+
+COPY "start-dcrd.sh" .
+COPY "start-dcrctl.sh" .
+
 RUN mkdir "/rpc" \
-        && "/bin/gencerts" --host="dcrd" --host="localhost" --directory="/rpc" --force
+    &&  chmod +x start-dcrctl.sh \
+    &&  chmod +x start-dcrd.sh \
+    && "/bin/gencerts" --host="*" --directory="/rpc" --force
 
+# Create a volume to house pregenerated RPC credentials. This will be
+# shared with any containers so they can securely query dcrd's RPC server.
+# You should NOT do this before certificate generation!
+# Otherwise manually generated certificate will be overridden with shared
+# mounted volume! For more info read dockerfile "VOLUME" documentation.
 VOLUME ["/rpc"]
 
-# Simnet default port (server, rpc)
-EXPOSE 18555 19556
-
-# Testnet default port (server, rpc)
-EXPOSE 19108 19109
-
-# Mainnet default port (server, rpc)
+# Expose mainnet ports (server, rpc)
 EXPOSE 9108 9109
 
-CMD ["sh", "-c", "dcrd -C ~/.dcrd/dcrd-${NETWORK}.conf"]
+# Expose testnet ports (server, rpc)
+EXPOSE 19108 19109
+
+# Expose simnet ports (server, rpc)
+EXPOSE 18555 19556

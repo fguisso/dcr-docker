@@ -1,44 +1,54 @@
-# Build image
-FROM golang:1.12-alpine3.10
+FROM golang:1.13-alpine as builder
 
-ENV DCRWALLET_SRC=github.com/decred/dcrwallet
+# Passing env to the builder image
+ARG WALLET_SEED
+ARG WALLET_PASS
+ENV WALLET_SEED=$WALLET_SEED WALLET_PASS=$WALLET_PASS
 
+# Install build dependencies.
 RUN apk add --no-cache git
 
-RUN git clone https://${DCRWALLET_SRC} /src/${DCRWALLET_SRC} \
-    && cd /src/$DCRWALLET_SRC \
-    && go install .
+WORKDIR $GOPATH/src/github.com/decred/dcrwallet
+# Grab and install the latest version of of dcrwallet
+# and all related dependencies.
+RUN git clone https://github.com/decred/dcrwallet.git . \
+    &&  go install
 
-COPY . ../config
+COPY . /init
 
-RUN mkdir "/rpc" \
-        && git clone https://github.com/decred/dcrd /src/github.com/decred/dcrd \
-        && cd /src/github.com/decred/dcrd \
-        && go install -v ./cmd/gencerts ./cmd/dcrctl \
-        && gencerts --host="localhost" --directory="/rpc" --force
-
-RUN dcrwallet \ 
-        --noinitialload \
-        --configfile=/config/dcrwallet-simnet.conf \
-        --rpccert=/rpc/rpc.cert \
-        --rpckey=/rpc/rpc.key \
-        & sleep 5 \
-    && cd /config \
+# Start dcrwallet to create new wallet, get an address
+# and export the walletdb
+RUN dcrwallet \
+    --noinitialload \
+    --appdata=/data \
+    --rpccert=/rpc/rpc.cert \
+    --rpckey=/rpc/rpc.key \
+    --simnet \
+    & sleep 5 \
+    && cd /init \
     && go run main.go
 
-# Final image
-FROM alpine:3.10
+# Start a new image
+FROM alpine as final
 
-RUN apk add --no-cache ca-certificates
+# Passing argument to final image
+ARG WALLET_PASS
+ENV WALLET_PASS=$WALLET_PASS
 
-COPY --from=0 /go/bin/* /bin/
-COPY --from=0 /data/simnet ../data/simnet
-COPY dcrwallet-simnet.conf /root/.dcrwallet/dcrwallet-simnet.conf
+RUN apk add --no-cache \
+    bash \
+    ca-certificates
 
-RUN mkdir "/rpc"
-VOLUME ["/rpc"]
+RUN mkdir "/data"
+# Copy the compiled binaries and db from the builder image.
+COPY --from=builder /go/bin/dcrwallet /bin/
+COPY --from=builder /data/simnet /data/simnet
+COPY --from=builder /data/dcrd.conf /data/dcrd.conf
 
-# Simnet default port (server, rpc)
-EXPOSE 19556 19557
+COPY "start-dcrwallet.sh" .
+RUN chmod +x start-dcrwallet.sh 
 
-CMD ["sh", "-c", "dcrwallet -C ~/.dcrwallet/dcrwallet-${NETWORK}.conf"]
+VOLUME ["/data"]
+
+# Expose simnet ports (server, rpc, grpc)
+EXPOSE 19556-19558

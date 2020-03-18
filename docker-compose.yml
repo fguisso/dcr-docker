@@ -1,34 +1,85 @@
-version: '3.4'
-
-x-common-variables: &variables
-  NETWORK: "simnet"
+version: '3'
 
 services:
-  dcrd:
-    build:
-      context: dcrd/
-    environment: *variables
-    volumes:
-      - shared:/rpc
-      - decred:/data
-    networks:
-      - ln-network
+    # dcr is an image of decred node which is used as base image for dcrd and
+    # dcrlncli. The environment variables default values determined on stage of
+    # container start within starting script.
 
-  dcrwallet:
-    build: dcrwallet/
-    depends_on:
-      - dcrd
-    environment: *variables
-    volumes:
-      - shared:/rpc
-    networks:
-      - ln-network
+   dcrd:
+     container_name: dcrd
+     build:
+       context: dcrd/
+     volumes:
+       - shared:/config
+       - decred:/data
+     environment:
+       - RPCUSER
+       - RPCPASS
+       - NETWORK
+       - DEBUG
+       - MINING_ADDRESS
+     networks:
+       - dcr-network
+     entrypoint: ["./start-dcrd.sh"]
+
+   dcrctl:
+     build:
+       context: dcrd/
+     volumes:
+       - shared:/rpc
+       - decred:/data
+     environment:
+       - RPCUSER
+       - RPCPASS
+       - NETWORK
+     networks:
+       - dcr-network
+     entrypoint: ["./start-dcrctl.sh"]
+
+   dcrwallet:
+     container_name: dcrwallet
+     build:
+       context: dcrwallet/
+       args:
+         WALLET_SEED: "0000000000000000000000000000000000000000000000000000000000000000"
+         WALLET_PASS: "123"
+     volumes:
+       - shared:/rpc
+       - decred:/data
+     environment:
+       - RPCUSER
+       - RPCPASS
+       - NETWORK
+     networks:
+       - dcr-network
+     entrypoint: ["./start-dcrwallet.sh"]
+
+   dcrlnd:
+     build:
+       context: ../
+       dockerfile: docker/dcrlnd/Dockerfile
+     environment:
+       - RPCUSER
+       - RPCPASS
+       - NETWORK
+       - DEBUG
+     networks:
+       - dcr-network
+     volumes:
+       - shared:/rpc
+     entrypoint: ["./start-dcrlnd.sh"]
 
 volumes:
+  # shared volume is need to store the dcrd rpc certificates and use it within
+  # dcrctl and dcrlnd containers.
   shared:
     driver: local
+
+  # decred volume is needed for maintaining blockchain persistence
+  # during dcrd container recreation.
   decred:
     driver: local
+
 networks:
-  ln-network:
+  dcr-network:
     driver: bridge
